@@ -1,0 +1,33 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main  # Change this to your deployment branch if needed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Key
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ci.pem
+          chmod 600 ci.pem
+
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ci.pem ec2-user@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
+            sudo rm -rf /var/www/html/*
+            exit
+          EOF
+          scp -o StrictHostKeyChecking=no -i ci.pem -r * ec2-user@${{ secrets.EC2_PUBLIC_IP }}:/var/www/html/
+
+      - name: Restart Nginx
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ci.pem ec2-user@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
+            sudo systemctl restart nginx
+            exit
+          EOF
