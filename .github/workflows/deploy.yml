@@ -14,20 +14,16 @@ jobs:
 
       - name: Setup SSH Key
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ci.pem
-          chmod 600 ci.pem
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_PUBLIC_IP }} >> ~/.ssh/known_hosts
 
       - name: Deploy to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no -i ci.pem ec2-user@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
-            sudo rm -rf /var/www/html/*
-            exit
-          EOF
-          scp -o StrictHostKeyChecking=no -i ci.pem -r * ec2-user@${{ secrets.EC2_PUBLIC_IP }}:/var/www/html/
+          ssh -i ~/.ssh/id_rsa ec2-user@${{ secrets.EC2_PUBLIC_IP }} "sudo rm -rf /var/www/html/*"
+          scp -i ~/.ssh/id_rsa -r * ec2-user@${{ secrets.EC2_PUBLIC_IP }}:/var/www/html/
 
       - name: Restart Nginx
         run: |
-          ssh -o StrictHostKeyChecking=no -i ci.pem ec2-user@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
-            sudo systemctl restart nginx
-            exit
-          EOF
+          ssh -i ~/.ssh/id_rsa ec2-user@${{ secrets.EC2_PUBLIC_IP }} "sudo systemctl restart nginx"
